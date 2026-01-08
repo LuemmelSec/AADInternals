@@ -1,4 +1,4 @@
-﻿#
+#
 # This file contains functions for Azure AD / Office 365 kill chain
 #
 
@@ -240,6 +240,19 @@ function Invoke-ReconAsOutsider
                 }
                 Remove-Variable "relayingParties" -ErrorAction SilentlyContinue
                 $domainInformation += New-Object psobject -Property $attributes
+            }
+        }
+
+        # Fallback: If tenant name was not found from autodiscover, try alternative method
+        if([string]::IsNullOrEmpty($tenantName))
+        {
+            Write-Verbose "Tenant name not found from autodiscover, trying alternative method..."
+            $tenantName = Get-TenantNameByTenantId -TenantId $tenantId -SubScope $tenantSubscope -Domain $DomainName
+            
+            # If still not found, give user a hint
+            if([string]::IsNullOrEmpty($tenantName))
+            {
+                Write-Warning "Tenant name lookup requires authentication. Run 'Get-AADIntAccessTokenForMSGraph -SaveToCache' first (can use any tenant)."
             }
         }
 
