@@ -1,4 +1,4 @@
-﻿#
+#
 # This file contains functions for Azure AD / Office 365 kill chain
 #
 

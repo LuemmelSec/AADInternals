@@ -2,6 +2,7 @@
 # Jun 16th 2020
 # Aug 30th 2022: Fixed by maxgrim
 # Fe. 19th 2025: Add new mx.microsoft check by Michael Morten Sonne
+# January 8th 2026: Added functionality to retrieve Tenant Name from Graph (authentication to dummy tenant required) and DKIM records (unauthenticated)
 
 function HasCloudMX
 {
