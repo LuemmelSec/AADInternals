@@ -1303,7 +1303,13 @@ function Get-TenantDomainsFromACS
     registered email domains (allowedAudiences) for a tenant. This endpoint returns
     domains that are registered with the tenant for email routing and federation purposes.
 
-    Requires the tenant's initial domain name (*.onmicrosoft.com).
+    Requires the tenant's initial domain name (*.onmicrosoft.com or *.onmicrosoft.us for gov clouds).
+
+    .Parameter TenantName
+    The tenant's initial domain name (e.g., company.onmicrosoft.com, company.onmicrosoft.us)
+
+    .Parameter SubScope
+    Optional tenant subscope/region identifier (DOD, DODCON, etc.)
 
     .Example
     Get-AADIntTenantDomainsFromACS -TenantName company.onmicrosoft.com
@@ -1312,18 +1318,43 @@ function Get-TenantDomainsFromACS
     company.mail.onmicrosoft.com
     company.onmicrosoft.com
 
+    .Example
+    Get-AADIntTenantDomainsFromACS -TenantName company.onmicrosoft.us -SubScope DOD
+
+    company.com
+    company.mail.onmicrosoft.us
+    company.onmicrosoft.us
+
 #>
     [cmdletbinding()]
     Param(
         [Parameter(Mandatory=$True)]
-        [String]$TenantName
+        [String]$TenantName,
+        [Parameter(Mandatory=$False)]
+        [String]$SubScope
     )
     Process
     {
         try
         {
-            # Build the ACS metadata endpoint URL
-            $uri = "https://accounts.accesscontrol.windows.net/$TenantName/metadata/json/1"
+            # Build the ACS metadata endpoint URL based on cloud environment
+            # Reference: https://learn.microsoft.com/en-us/exchange/configure-oauth-authentication-between-exchange-and-exchange-online-organizations-exchange-2013-help
+            # Note: Government clouds use login.microsoftonline.us instead of accounts.accesscontrol
+            switch($SubScope)
+            {
+                "DOD" # DoD
+                {
+                    $uri = "https://login.microsoftonline.us/$TenantName/metadata/json/1"
+                }
+                "DODCON" # GCC-High
+                {
+                    $uri = "https://login.microsoftonline.us/$TenantName/metadata/json/1"
+                }
+                default # Commercial/GCC
+                {
+                    $uri = "https://accounts.accesscontrol.windows.net/$TenantName/metadata/json/1"
+                }
+            }
             
             Write-Verbose "Querying ACS metadata endpoint: $uri"
             
@@ -1331,7 +1362,8 @@ function Get-TenantDomainsFromACS
             $response = Invoke-RestMethod -Uri $uri -UseBasicParsing -ErrorAction Stop
             
             # Extract domains from allowedAudiences
-            # Format: 00000001-0000-0000-c000-000000000000/accounts.accesscontrol.windows.net@<domain>
+            # Format (Commercial): 00000001-0000-0000-c000-000000000000/accounts.accesscontrol.windows.net@<domain>
+            # Format (Gov clouds): 00000001-0000-0000-c000-000000000000/login.microsoftonline.us@<domain>
             $domains = @()
             if($response.allowedAudiences)
             {
@@ -1509,7 +1541,7 @@ function Get-TenantDomains
             if(![string]::IsNullOrEmpty($tenantName))
             {
                 Write-Verbose "Using tenant name: $tenantName for ACS query"
-                $acsDomains = Get-TenantDomainsFromACS -TenantName $tenantName
+                $acsDomains = Get-TenantDomainsFromACS -TenantName $tenantName -SubScope $SubScope
                 
                 if($acsDomains.Count -gt 0)
                 {
